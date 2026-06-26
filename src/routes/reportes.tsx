@@ -76,7 +76,7 @@ function ReportesPage() {
     byDay.forEach((amount, date) => {
       if (!topDay || amount > topDay.amount) topDay = { date, amount };
     });
-    return { promedio: totalGasto / daysElapsed, topDay };
+    return { promedio: totalGasto / daysElapsed, topDay: topDay as { date: string; amount: number } | null };
   }, [monthMovs]);
 
   return (

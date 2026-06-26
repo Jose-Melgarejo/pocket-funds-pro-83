@@ -9,8 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReportesRouteImport } from './routes/reportes'
+import { Route as RegistrarRouteImport } from './routes/registrar'
+import { Route as MovimientosRouteImport } from './routes/movimientos'
+import { Route as CategoriasRouteImport } from './routes/categorias'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ReportesRoute = ReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistrarRoute = RegistrarRouteImport.update({
+  id: '/registrar',
+  path: '/registrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MovimientosRoute = MovimientosRouteImport.update({
+  id: '/movimientos',
+  path: '/movimientos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriasRoute = CategoriasRouteImport.update({
+  id: '/categorias',
+  path: '/categorias',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +43,78 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/categorias': typeof CategoriasRoute
+  '/movimientos': typeof MovimientosRoute
+  '/registrar': typeof RegistrarRoute
+  '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/categorias': typeof CategoriasRoute
+  '/movimientos': typeof MovimientosRoute
+  '/registrar': typeof RegistrarRoute
+  '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/categorias': typeof CategoriasRoute
+  '/movimientos': typeof MovimientosRoute
+  '/registrar': typeof RegistrarRoute
+  '/reportes': typeof ReportesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/categorias' | '/movimientos' | '/registrar' | '/reportes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/categorias' | '/movimientos' | '/registrar' | '/reportes'
+  id:
+    | '__root__'
+    | '/'
+    | '/categorias'
+    | '/movimientos'
+    | '/registrar'
+    | '/reportes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CategoriasRoute: typeof CategoriasRoute
+  MovimientosRoute: typeof MovimientosRoute
+  RegistrarRoute: typeof RegistrarRoute
+  ReportesRoute: typeof ReportesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reportes': {
+      id: '/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof ReportesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registrar': {
+      id: '/registrar'
+      path: '/registrar'
+      fullPath: '/registrar'
+      preLoaderRoute: typeof RegistrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movimientos': {
+      id: '/movimientos'
+      path: '/movimientos'
+      fullPath: '/movimientos'
+      preLoaderRoute: typeof MovimientosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categorias': {
+      id: '/categorias'
+      path: '/categorias'
+      fullPath: '/categorias'
+      preLoaderRoute: typeof CategoriasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +127,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CategoriasRoute: CategoriasRoute,
+  MovimientosRoute: MovimientosRoute,
+  RegistrarRoute: RegistrarRoute,
+  ReportesRoute: ReportesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
