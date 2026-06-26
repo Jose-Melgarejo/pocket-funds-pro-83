@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listMovements, monthRange, fmtMoney, fmtDate } from "@/lib/finance-api";
-import { ArrowDownCircle, ArrowUpCircle, Plus, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { listMovements, monthRange, fmtMoney, fmtDate, KIND_LABELS, type MovementKind } from "@/lib/finance-api";
+import { ArrowDownCircle, ArrowUpCircle, Plus, TrendingUp, TrendingDown, Wallet, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -15,13 +15,26 @@ function Dashboard() {
     queryFn: () => listMovements({ from, to }),
   });
 
-  const ingresos = movs.filter((m) => m.type === "income").reduce((s, m) => s + Number(m.amount), 0);
-  const gastos = movs.filter((m) => m.type === "expense").reduce((s, m) => s + Number(m.amount), 0);
+  const ingresos = movs
+    .filter((m) => m.type === "income" && m.kind !== "retiro_negocio")
+    .reduce((s, m) => s + Number(m.amount), 0);
+  const gastos = movs
+    .filter((m) => m.type === "expense")
+    .reduce((s, m) => s + Number(m.amount), 0);
+  const retirosNegocio = movs
+    .filter((m) => m.kind === "retiro_negocio")
+    .reduce((s, m) => s + Number(m.amount), 0);
   const balance = ingresos - gastos;
   const monthName = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
 
+  const kindLabel = (m: (typeof movs)[0]) => {
+    if (m.kind) return KIND_LABELS[m.kind as MovementKind];
+    return m.type === "income" ? "Ingreso" : "Gasto";
+  };
+
   return (
     <div className="space-y-5">
+      {/* Balance card */}
       <section
         className={cn(
           "rounded-2xl p-5 text-white shadow-[var(--shadow-card)]",
@@ -40,6 +53,7 @@ function Dashboard() {
         </div>
       </section>
 
+      {/* Ingresos / Gastos */}
       <section className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)]">
           <div className="flex items-center gap-2 text-income">
@@ -57,6 +71,18 @@ function Dashboard() {
         </div>
       </section>
 
+      {/* Retiros del negocio */}
+      {retirosNegocio > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <Building2 className="h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-xs font-medium text-amber-800">Retiros del negocio este mes</p>
+            <p className="text-lg font-bold tabular-nums text-amber-700">{fmtMoney(retirosNegocio)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* CTA */}
       <Link
         to="/registrar"
         className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-card)] transition active:scale-[0.98]"
@@ -64,6 +90,7 @@ function Dashboard() {
         <Plus className="h-5 w-5" /> Registrar movimiento
       </Link>
 
+      {/* Últimos movimientos */}
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Últimos movimientos</h2>
@@ -84,7 +111,11 @@ function Dashboard() {
                   <div
                     className={cn(
                       "grid h-9 w-9 shrink-0 place-items-center rounded-full",
-                      m.type === "income" ? "bg-income-soft text-income" : "bg-expense-soft text-expense"
+                      m.kind === "retiro_negocio"
+                        ? "bg-amber-100 text-amber-600"
+                        : m.type === "income"
+                          ? "bg-income-soft text-income"
+                          : "bg-expense-soft text-expense"
                     )}
                   >
                     {m.type === "income" ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
@@ -92,10 +123,15 @@ function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{m.description || m.category?.name || "Movimiento"}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {m.category?.name ?? "Sin categoría"} · {fmtDate(m.date)}
+                      {kindLabel(m)} · {m.account?.name ?? m.category?.name ?? "Sin categoría"} · {fmtDate(m.date)}
                     </p>
                   </div>
-                  <p className={cn("shrink-0 text-sm font-bold tabular-nums", m.type === "income" ? "text-income" : "text-expense")}>
+                  <p
+                    className={cn(
+                      "shrink-0 text-sm font-bold tabular-nums",
+                      m.kind === "retiro_negocio" ? "text-amber-600" : m.type === "income" ? "text-income" : "text-expense"
+                    )}
+                  >
                     {m.type === "income" ? "+" : "−"}{fmtMoney(Number(m.amount))}
                   </p>
                 </li>

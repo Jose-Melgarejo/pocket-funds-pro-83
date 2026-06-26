@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           active: boolean
@@ -43,35 +70,47 @@ export type Database = {
       }
       movements: {
         Row: {
+          account_id: string | null
           amount: number
           category_id: string | null
           created_at: string
           date: string
           description: string | null
           id: string
+          is_planned: boolean
+          kind: string | null
           notes: string | null
+          to_account_id: string | null
           type: string
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           amount: number
           category_id?: string | null
           created_at?: string
           date?: string
           description?: string | null
           id?: string
+          is_planned?: boolean
+          kind?: string | null
           notes?: string | null
+          to_account_id?: string | null
           type: string
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           amount?: number
           category_id?: string | null
           created_at?: string
           date?: string
           description?: string | null
           id?: string
+          is_planned?: boolean
+          kind?: string | null
           notes?: string | null
+          to_account_id?: string | null
           type?: string
           updated_at?: string
         }

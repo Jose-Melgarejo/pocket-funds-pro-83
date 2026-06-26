@@ -9,7 +9,10 @@ function RegistrarPage() {
   const navigate = useNavigate();
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)]">
-      <MovementForm onSaved={() => navigate({ to: "/" })} />
+      <MovementForm
+        onSaved={() => navigate({ to: "/" })}
+        onSavedAndNew={() => {/* stay on page, form resets itself */}}
+      />
     </div>
   );
 }
