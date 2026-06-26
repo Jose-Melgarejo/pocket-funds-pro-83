@@ -1,13 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { Home, PlusCircle, ListOrdered, BarChart3, Tags } from "lucide-react";
 
-const items = [
+type NavItem = {
+  to: "/" | "/movimientos" | "/registrar" | "/reportes" | "/categorias";
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+  primary?: boolean;
+};
+
+const items: NavItem[] = [
   { to: "/", label: "Inicio", icon: Home, exact: true },
   { to: "/movimientos", label: "Movimientos", icon: ListOrdered },
   { to: "/registrar", label: "Registrar", icon: PlusCircle, primary: true },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
   { to: "/categorias", label: "Categorías", icon: Tags },
-] as const;
+];
 
 export function BottomNav() {
   return (
