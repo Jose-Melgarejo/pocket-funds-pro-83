@@ -14,6 +14,7 @@ import {
   type MovementWithRefs,
   type Entity,
 } from "@/lib/finance-api";
+import { useEntity } from "@/lib/entity-context";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ interface Props {
 
 export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew, submitLabel = "Registrar" }: Props) {
   const qc = useQueryClient();
+  const { activeEntityId: contextEntityId } = useEntity();
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
   const { data: entities = [] } = useQuery({ queryKey: ["entities"], queryFn: listEntities });
@@ -61,19 +63,19 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
   const [categoryId, setCategoryId] = useState<string>(initial?.category_id ?? "");
   const [accountId, setAccountId] = useState<string>(initial?.account_id ?? "");
   const [entityId, setEntityId] = useState<string>(
-    initial?.entity_id ?? defaultEntityId ?? entities[0]?.id ?? ""
+    initial?.entity_id ?? defaultEntityId ?? contextEntityId ?? entities[0]?.id ?? ""
   );
   const [toEntityId, setToEntityId] = useState<string>(initial?.to_entity_id ?? "");
   const [amount, setAmount] = useState<string>(initial ? String(initial.amount) : "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [saveAndNew, setSaveAndNew] = useState(false);
 
-  // Set default entity once entities load
+  // Set default entity once entities/context load
   useEffect(() => {
-    if (!entityId && entities.length > 0) {
-      setEntityId(defaultEntityId ?? entities[0].id);
+    if (!entityId && (contextEntityId || entities.length > 0)) {
+      setEntityId(contextEntityId ?? defaultEntityId ?? entities[0]?.id ?? "");
     }
-  }, [entities, entityId, defaultEntityId]);
+  }, [entities, entityId, defaultEntityId, contextEntityId]);
 
   const type = kindToType(kind);
   const isIntercompany = INTERCOMPANY_KINDS.includes(kind);

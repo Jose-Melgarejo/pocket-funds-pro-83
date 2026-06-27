@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
+import { EntitySwitcher } from "@/components/EntitySwitcher";
+import { EntityProvider } from "@/lib/entity-context";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -92,22 +94,31 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Pages where the entity switcher is visible in the header
+const ENTITY_PAGES = new Set(["/", "/movimientos", "/registrar"]);
+
 function AppFrame() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const titles: Record<string, string> = {
-    "/": "Control de Finanzas",
     "/registrar": "Registrar movimiento",
-    "/movimientos": "Movimientos",
     "/reportes": "Reportes",
     "/categorias": "Categorías",
     "/perfil": "Perfil",
   };
-  const title = titles[pathname] ?? "Control de Finanzas";
+  const title = titles[pathname];
+  const showSwitcher = ENTITY_PAGES.has(pathname);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-md items-center px-4">
-          <h1 className="truncate text-base font-semibold tracking-tight">{title}</h1>
+        <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
+          {showSwitcher ? (
+            <EntitySwitcher />
+          ) : (
+            <h1 className="truncate text-base font-semibold tracking-tight">
+              {title ?? "Control de Finanzas"}
+            </h1>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-md px-4 pb-28 pt-4">
@@ -123,7 +134,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AppFrame />
+      <EntityProvider>
+        <AppFrame />
+      </EntityProvider>
     </QueryClientProvider>
   );
 }

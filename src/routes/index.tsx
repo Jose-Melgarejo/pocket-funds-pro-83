@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import {
   listMovements, listEntities, monthRange, fmtMoney, fmtDate,
   computeStats, amountForEntity, KIND_LABELS,
   type MovementKind, type Entity,
 } from "@/lib/finance-api";
+import { useEntity } from "@/lib/entity-context";
 import { ArrowDownCircle, ArrowUpCircle, Plus, TrendingUp, TrendingDown, Wallet, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
   const { from, to } = monthRange();
-  const [entityId, setEntityId] = useState<string | null>(null); // null = not loaded yet
+  const { activeEntityId } = useEntity();
 
   const { data: entities = [] } = useQuery({
     queryKey: ["entities"],
@@ -21,9 +21,8 @@ function Dashboard() {
     staleTime: 60_000,
   });
 
-  // Default to first entity (Personal) once loaded
-  const activeEntity: Entity | undefined = entityId
-    ? entities.find((e) => e.id === entityId)
+  const activeEntity: Entity | undefined = activeEntityId
+    ? entities.find((e) => e.id === activeEntityId)
     : entities[0];
   const activeId = activeEntity?.id ?? "";
 
@@ -46,32 +45,6 @@ function Dashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Entity selector */}
-      {entities.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {entities.map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              onClick={() => setEntityId(e.id)}
-              className={cn(
-                "shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition",
-                (activeEntity?.id ?? entities[0]?.id) === e.id
-                  ? "text-white shadow-sm"
-                  : "border-border bg-card text-muted-foreground"
-              )}
-              style={
-                (activeEntity?.id ?? entities[0]?.id) === e.id
-                  ? { backgroundColor: e.color, borderColor: e.color }
-                  : undefined
-              }
-            >
-              {e.name}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Balance card */}
       <section
         className="rounded-2xl p-5 text-white shadow-[var(--shadow-card)]"
