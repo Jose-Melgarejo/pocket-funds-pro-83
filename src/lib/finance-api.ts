@@ -222,8 +222,12 @@ export async function listMovements(filters?: {
  */
 export function amountForEntity(m: MovementWithRefs, entityId: string): number {
   if (m.to_entity_id === entityId && m.entity_id !== entityId) {
-    // intercompany arriving here → always income
+    // intercompany arriving here → always positive
     return m.amount;
+  }
+  if (m.entity_id === entityId && m.to_entity_id) {
+    // intercompany sent from here → always negative
+    return -m.amount;
   }
   return m.type === "income" ? m.amount : -m.amount;
 }
