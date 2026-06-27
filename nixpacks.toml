@@ -7,6 +7,9 @@ cmds = ['npm install']
 [phases.build]
 cmds = ['NITRO_PRESET=node-server npm run build']
 
+[variables]
+NITRO_PRESET = 'node-server'
+
 [start]
 cmd = 'node .output/server/index.mjs'
 port = 3000
