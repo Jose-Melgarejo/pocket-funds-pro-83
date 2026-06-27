@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEntity } from "@/lib/entity-context";
 import { toast } from "sonner";
 import {
   deleteMovement,
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/movimientos")({ component: MovimientosPag
 
 function MovimientosPage() {
   const qc = useQueryClient();
+  const { activeEntityId } = useEntity();
   const [type, setType] = useState<MovementType | "all">("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [accountId, setAccountId] = useState<string>("all");
@@ -41,9 +43,10 @@ function MovimientosPage() {
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
   const { data: movs = [], isLoading } = useQuery({
-    queryKey: ["movements", { type, categoryId, accountId, from, to, search }],
+    queryKey: ["movements", { type, categoryId, accountId, from, to, search, entityId: activeEntityId }],
     queryFn: () => listMovements({
       type, categoryId, accountId,
+      entityId: activeEntityId ?? undefined,
       from: from || undefined, to: to || undefined, search,
     }),
   });

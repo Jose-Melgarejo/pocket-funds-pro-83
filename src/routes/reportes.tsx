@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listMovements, fmtMoney } from "@/lib/finance-api";
+import { useEntity } from "@/lib/entity-context";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -32,12 +33,13 @@ function buildMonths() {
 const palette = ["#10b981", "#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
 function ReportesPage() {
+  const { activeEntityId } = useEntity();
   const [months] = useState(buildMonths);
   const first = months[0].from;
   const last = months[months.length - 1].to;
   const { data: movs = [] } = useQuery({
-    queryKey: ["movements", { reportFrom: first, reportTo: last }],
-    queryFn: () => listMovements({ from: first, to: last }),
+    queryKey: ["movements", { reportFrom: first, reportTo: last, entityId: activeEntityId }],
+    queryFn: () => listMovements({ from: first, to: last, entityId: activeEntityId ?? undefined }),
   });
 
   const monthly = useMemo(() => {

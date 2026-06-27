@@ -18,14 +18,23 @@ export function kindToType(kind: MovementKind): MovementType {
 }
 
 export const KIND_LABELS: Record<MovementKind, string> = {
-  ingreso_personal:  "Ingreso personal",
-  gasto_personal:    "Gasto personal",
+  ingreso_personal:  "Ingreso",
+  gasto_personal:    "Gasto",
   gasto_negocio:     "Gasto negocio",
   retiro_negocio:    "Retiro / Sueldo",
   transferencia:     "Transferencia",
   pago_tarjeta:      "Pago tarjeta",
   ahorro_inversion:  "Ahorro / inversión",
 };
+
+export const KIND_GROUPS_PERSONAL: { label: string; kinds: MovementKind[] }[] = [
+  { label: "Movimientos", kinds: ["ingreso_personal", "gasto_personal", "pago_tarjeta", "ahorro_inversion"] },
+];
+
+export const KIND_GROUPS_BUSINESS: { label: string; kinds: MovementKind[] }[] = [
+  { label: "Movimientos", kinds: ["ingreso_personal", "gasto_negocio"] },
+  { label: "Intercompany", kinds: ["retiro_negocio", "transferencia"] },
+];
 
 export interface Entity {
   id: string;

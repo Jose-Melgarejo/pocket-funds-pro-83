@@ -10,6 +10,8 @@ import {
   todayIso,
   updateMovement,
   KIND_LABELS,
+  KIND_GROUPS_PERSONAL,
+  KIND_GROUPS_BUSINESS,
   type MovementKind,
   type MovementWithRefs,
   type Entity,
@@ -21,11 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-const KIND_GROUPS: { label: string; kinds: MovementKind[] }[] = [
-  { label: "Personal", kinds: ["gasto_personal", "ingreso_personal", "pago_tarjeta", "ahorro_inversion"] },
-  { label: "Negocio",  kinds: ["retiro_negocio", "gasto_negocio", "transferencia"] },
-];
 
 const KIND_COLOR: Record<MovementKind, string> = {
   gasto_personal:   "border-expense bg-expense-soft text-expense",
@@ -96,6 +93,15 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
     .filter((c) => c.suggested_type === "both" || c.suggested_type === type);
 
   // Filter accounts to selected entity (or show all if no entity selected)
+  const activeEntityObj = entities.find((e) => e.id === entityId);
+  const kindGroups = activeEntityObj?.type === "business" ? KIND_GROUPS_BUSINESS : KIND_GROUPS_PERSONAL;
+
+  // Reset kind if current kind not available in new groups
+  useEffect(() => {
+    const allKinds = kindGroups.flatMap((g) => g.kinds);
+    if (!allKinds.includes(kind)) setKind(allKinds[0] ?? "gasto_personal");
+  }, [entityId, kindGroups]);
+
   const activeAccounts = accounts.filter((a) => {
     if (!a.active) return false;
     if (!entityId || !a.entity_id) return true;
@@ -179,7 +185,7 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
       {/* Kind chips */}
       <div className="space-y-3">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tipo de movimiento</Label>
-        {KIND_GROUPS.map((group) => (
+        {kindGroups.map((group) => (
           <div key={group.label}>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">{group.label}</p>
             <div className="flex flex-wrap gap-2">

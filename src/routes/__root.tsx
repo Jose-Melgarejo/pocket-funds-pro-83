@@ -95,7 +95,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 // Pages where the entity switcher is visible in the header
-const ENTITY_PAGES = new Set(["/", "/movimientos", "/registrar"]);
+const ENTITY_PAGES = new Set(["/", "/movimientos", "/registrar", "/reportes"]);
 
 function AppFrame() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
