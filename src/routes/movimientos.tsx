@@ -10,6 +10,7 @@ import {
   listAccounts,
   listCategories,
   listMovements,
+  amountForEntity,
   KIND_LABELS,
   type MovementKind,
   type MovementType,
@@ -52,10 +53,14 @@ function MovimientosPage() {
   });
 
   const totals = useMemo(() => {
-    const i = movs.filter((m) => m.type === "income").reduce((s, m) => s + Number(m.amount), 0);
-    const g = movs.filter((m) => m.type === "expense").reduce((s, m) => s + Number(m.amount), 0);
+    let i = 0, g = 0;
+    for (const m of movs) {
+      const amt = activeEntityId ? amountForEntity(m, activeEntityId) : (m.type === "income" ? m.amount : -m.amount);
+      if (amt >= 0) i += amt;
+      else g += Math.abs(amt);
+    }
     return { i, g, balance: i - g };
-  }, [movs]);
+  }, [movs, activeEntityId]);
 
   const del = useMutation({
     mutationFn: (id: string) => deleteMovement(id),
@@ -129,31 +134,35 @@ function MovimientosPage() {
           <div className="p-8 text-center text-sm text-muted-foreground">Sin resultados</div>
         ) : (
           <ul className="divide-y divide-border">
-            {movs.map((m) => (
+            {movs.map((m) => {
+              const amt = activeEntityId ? amountForEntity(m, activeEntityId) : (m.type === "income" ? m.amount : -m.amount);
+              const isIncoming = amt >= 0;
+              const isInterOut = activeEntityId && m.entity_id === activeEntityId && !!m.to_entity_id;
+              return (
               <li key={m.id} className="flex items-center gap-3 px-3 py-3">
                 <div className={cn(
                   "grid h-9 w-9 shrink-0 place-items-center rounded-full",
-                  m.kind === "retiro_negocio"
-                    ? "bg-amber-100 text-amber-600"
-                    : m.type === "income"
-                      ? "bg-income-soft text-income"
-                      : "bg-expense-soft text-expense"
+                  isIncoming ? "bg-income-soft text-income" : "bg-expense-soft text-expense"
                 )}>
-                  {m.type === "income" ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
+                  {isIncoming ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{m.description || m.category?.name || "Movimiento"}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {kindLabel(m)}
+                    {isInterOut
+                      ? `→ ${m.to_entity?.name ?? "otra entidad"}`
+                      : m.to_entity_id && !isInterOut
+                      ? `De ${m.entity?.name ?? "otra entidad"}`
+                      : kindLabel(m)}
                     {m.account && <> · {m.account.name}</>}
                     {" · "}{fmtDate(m.date)}
                   </p>
                 </div>
                 <p className={cn(
                   "shrink-0 text-sm font-bold tabular-nums",
-                  m.kind === "retiro_negocio" ? "text-amber-600" : m.type === "income" ? "text-income" : "text-expense"
+                  isIncoming ? "text-income" : "text-expense"
                 )}>
-                  {m.type === "income" ? "+" : "−"}{fmtMoney(Number(m.amount))}
+                  {isIncoming ? "+" : "−"}{fmtMoney(Math.abs(amt))}
                 </p>
                 <div className="flex shrink-0 items-center gap-1">
                   <button onClick={() => setEditing(m)} className="rounded-md p-2 text-muted-foreground hover:bg-muted">
@@ -164,7 +173,8 @@ function MovimientosPage() {
                   </button>
                 </div>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </div>
