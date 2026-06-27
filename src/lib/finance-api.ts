@@ -13,7 +13,6 @@ export type MovementKind =
   | "pago_tarjeta"
   | "ahorro_inversion";
 
-/** Maps a kind to its income/expense bucket for balance calculations */
 export function kindToType(kind: MovementKind): MovementType {
   return kind === "ingreso_personal" || kind === "retiro_negocio" ? "income" : "expense";
 }
@@ -22,16 +21,28 @@ export const KIND_LABELS: Record<MovementKind, string> = {
   ingreso_personal:  "Ingreso personal",
   gasto_personal:    "Gasto personal",
   gasto_negocio:     "Gasto negocio",
-  retiro_negocio:    "Retiro negocio",
+  retiro_negocio:    "Retiro / Sueldo",
   transferencia:     "Transferencia",
   pago_tarjeta:      "Pago tarjeta",
   ahorro_inversion:  "Ahorro / inversión",
 };
 
+export interface Entity {
+  id: string;
+  name: string;
+  type: "personal" | "business";
+  color: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Account {
   id: string;
   name: string;
   type: "personal" | "business";
+  entity_id: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -53,15 +64,19 @@ export interface Movement {
   category_id: string | null;
   account_id: string | null;
   to_account_id: string | null;
+  entity_id: string | null;
+  to_entity_id: string | null;
   is_planned: boolean;
   amount: number;
   notes: string | null;
   created_at: string;
 }
 
-export interface MovementWithCategory extends Movement {
+export interface MovementWithRefs extends Movement {
   category?: Category | null;
   account?: Account | null;
+  entity?: Entity | null;
+  to_entity?: Entity | null;
 }
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -87,6 +102,33 @@ export function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// ─── Entities ─────────────────────────────────────────────────────────────────
+
+export async function listEntities(): Promise<Entity[]> {
+  const { data, error } = await supabase
+    .from("entities")
+    .select("*")
+    .eq("active", true)
+    .order("sort_order");
+  if (error) throw error;
+  return data as Entity[];
+}
+
+export async function createEntity(input: { name: string; type: "personal" | "business"; color: string }) {
+  const { error } = await supabase.from("entities").insert(input);
+  if (error) throw error;
+}
+
+export async function updateEntity(id: string, input: Partial<Pick<Entity, "name" | "type" | "color" | "active" | "sort_order">>) {
+  const { error } = await supabase.from("entities").update(input).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEntity(id: string) {
+  const { error } = await supabase.from("entities").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ─── Accounts ─────────────────────────────────────────────────────────────────
 
 export async function listAccounts(): Promise<Account[]> {
@@ -95,12 +137,12 @@ export async function listAccounts(): Promise<Account[]> {
   return data as Account[];
 }
 
-export async function createAccount(input: { name: string; type: "personal" | "business" }) {
+export async function createAccount(input: { name: string; type: "personal" | "business"; entity_id?: string | null }) {
   const { error } = await supabase.from("accounts").insert(input);
   if (error) throw error;
 }
 
-export async function updateAccount(id: string, input: Partial<Pick<Account, "name" | "type" | "active">>) {
+export async function updateAccount(id: string, input: Partial<Pick<Account, "name" | "type" | "entity_id" | "active">>) {
   const { error } = await supabase.from("accounts").update(input).eq("id", id);
   if (error) throw error;
 }
@@ -130,23 +172,30 @@ export async function deleteCategory(id: string) {
 
 // ─── Movements ────────────────────────────────────────────────────────────────
 
+const MOVEMENT_SELECT = "*, category:categories(*), account:accounts!account_id(*), entity:entities!entity_id(*), to_entity:entities!to_entity_id(*)";
+
 export async function listMovements(filters?: {
   from?: string;
   to?: string;
+  entityId?: string | "all";
   type?: MovementType | "all";
   kind?: MovementKind | "all";
   categoryId?: string | "all";
   accountId?: string | "all";
   search?: string;
-}): Promise<MovementWithCategory[]> {
+}): Promise<MovementWithRefs[]> {
   let q = supabase
     .from("movements")
-    .select("*, category:categories(*), account:accounts!account_id(*)")
+    .select(MOVEMENT_SELECT)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (filters?.from) q = q.gte("date", filters.from);
   if (filters?.to) q = q.lte("date", filters.to);
+  if (filters?.entityId && filters.entityId !== "all") {
+    // Show movements that belong to this entity OR are intercompany TO this entity
+    q = q.or(`entity_id.eq.${filters.entityId},to_entity_id.eq.${filters.entityId}`);
+  }
   if (filters?.type && filters.type !== "all") q = q.eq("type", filters.type);
   if (filters?.kind && filters.kind !== "all") q = q.eq("kind", filters.kind);
   if (filters?.categoryId && filters.categoryId !== "all") q = q.eq("category_id", filters.categoryId);
@@ -155,7 +204,19 @@ export async function listMovements(filters?: {
 
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as MovementWithCategory[];
+  return (data ?? []) as MovementWithRefs[];
+}
+
+/** For a given movement, compute the amount sign relative to an entity.
+ *  - If entity_id matches → normal (positive income, negative expense)
+ *  - If to_entity_id matches → it's an incoming transfer (positive)
+ */
+export function amountForEntity(m: MovementWithRefs, entityId: string): number {
+  if (m.to_entity_id === entityId && m.entity_id !== entityId) {
+    // intercompany arriving here → always income
+    return m.amount;
+  }
+  return m.type === "income" ? m.amount : -m.amount;
 }
 
 export async function createMovement(input: {
@@ -165,7 +226,8 @@ export async function createMovement(input: {
   kind?: MovementKind | null;
   category_id: string;
   account_id?: string | null;
-  to_account_id?: string | null;
+  entity_id?: string | null;
+  to_entity_id?: string | null;
   is_planned?: boolean;
   amount: number;
   notes?: string | null;
@@ -182,4 +244,42 @@ export async function updateMovement(id: string, input: Partial<Omit<Movement, "
 export async function deleteMovement(id: string) {
   const { error } = await supabase.from("movements").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ─── Dashboard stats per entity ───────────────────────────────────────────────
+
+export interface EntityStats {
+  ingresos: number;
+  gastos: number;
+  balance: number;
+  transferencias_enviadas: number;
+  transferencias_recibidas: number;
+}
+
+export function computeStats(movs: MovementWithRefs[], entityId: string): EntityStats {
+  let ingresos = 0;
+  let gastos = 0;
+  let enviadas = 0;
+  let recibidas = 0;
+
+  for (const m of movs) {
+    const isOrigin = m.entity_id === entityId;
+    const isDest   = m.to_entity_id === entityId;
+    const isInter  = !!m.to_entity_id;
+
+    if (isOrigin && isInter) {
+      // Intercompany sent from this entity
+      enviadas += m.amount;
+      gastos   += m.amount;
+    } else if (isDest && !isOrigin) {
+      // Intercompany received by this entity
+      recibidas += m.amount;
+      ingresos  += m.amount;
+    } else if (isOrigin) {
+      if (m.type === "income") ingresos += m.amount;
+      else gastos += m.amount;
+    }
+  }
+
+  return { ingresos, gastos, balance: ingresos - gastos, transferencias_enviadas: enviadas, transferencias_recibidas: recibidas };
 }

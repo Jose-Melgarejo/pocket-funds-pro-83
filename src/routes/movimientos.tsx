@@ -12,7 +12,7 @@ import {
   KIND_LABELS,
   type MovementKind,
   type MovementType,
-  type MovementWithCategory,
+  type MovementWithRefs,
 } from "@/lib/finance-api";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,8 +35,8 @@ function MovimientosPage() {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<MovementWithCategory | null>(null);
-  const [toDelete, setToDelete] = useState<MovementWithCategory | null>(null);
+  const [editing, setEditing] = useState<MovementWithRefs | null>(null);
+  const [toDelete, setToDelete] = useState<MovementWithRefs | null>(null);
 
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
@@ -64,7 +64,7 @@ function MovimientosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const kindLabel = (m: MovementWithCategory) => {
+  const kindLabel = (m: MovementWithRefs) => {
     if (m.kind) return KIND_LABELS[m.kind as MovementKind];
     return m.type === "income" ? "Ingreso" : "Gasto";
   };

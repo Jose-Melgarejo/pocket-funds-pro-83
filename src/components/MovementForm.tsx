@@ -6,11 +6,13 @@ import {
   kindToType,
   listAccounts,
   listCategories,
+  listEntities,
   todayIso,
   updateMovement,
   KIND_LABELS,
   type MovementKind,
-  type MovementWithCategory,
+  type MovementWithRefs,
+  type Entity,
 } from "@/lib/finance-api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,17 +36,22 @@ const KIND_COLOR: Record<MovementKind, string> = {
   transferencia:    "border-muted-foreground bg-muted text-muted-foreground",
 };
 
+// Kinds that move money between entities
+const INTERCOMPANY_KINDS: MovementKind[] = ["retiro_negocio", "transferencia"];
+
 interface Props {
-  initial?: MovementWithCategory | null;
+  initial?: MovementWithRefs | null;
+  defaultEntityId?: string;
   onSaved?: () => void;
   onSavedAndNew?: () => void;
   submitLabel?: string;
 }
 
-export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "Registrar" }: Props) {
+export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew, submitLabel = "Registrar" }: Props) {
   const qc = useQueryClient();
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
-  const { data: accounts } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
+  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
+  const { data: entities = [] } = useQuery({ queryKey: ["entities"], queryFn: listEntities });
 
   const defaultKind: MovementKind = (initial?.kind as MovementKind) ?? "gasto_personal";
 
@@ -53,11 +60,23 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
   const [kind, setKind] = useState<MovementKind>(defaultKind);
   const [categoryId, setCategoryId] = useState<string>(initial?.category_id ?? "");
   const [accountId, setAccountId] = useState<string>(initial?.account_id ?? "");
+  const [entityId, setEntityId] = useState<string>(
+    initial?.entity_id ?? defaultEntityId ?? entities[0]?.id ?? ""
+  );
+  const [toEntityId, setToEntityId] = useState<string>(initial?.to_entity_id ?? "");
   const [amount, setAmount] = useState<string>(initial ? String(initial.amount) : "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [saveAndNew, setSaveAndNew] = useState(false);
 
+  // Set default entity once entities load
+  useEffect(() => {
+    if (!entityId && entities.length > 0) {
+      setEntityId(defaultEntityId ?? entities[0].id);
+    }
+  }, [entities, entityId, defaultEntityId]);
+
   const type = kindToType(kind);
+  const isIntercompany = INTERCOMPANY_KINDS.includes(kind);
 
   useEffect(() => {
     if (initial) return;
@@ -65,11 +84,23 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
     if (cat && cat.suggested_type !== "both" && cat.suggested_type !== type) setCategoryId("");
   }, [kind, categories, categoryId, type, initial]);
 
+  // If kind is not intercompany, clear toEntityId
+  useEffect(() => {
+    if (!isIntercompany) setToEntityId("");
+  }, [isIntercompany]);
+
   const activeCategories = (categories ?? [])
     .filter((c) => c.active)
     .filter((c) => c.suggested_type === "both" || c.suggested_type === type);
 
-  const activeAccounts = (accounts ?? []).filter((a) => a.active);
+  // Filter accounts to selected entity (or show all if no entity selected)
+  const activeAccounts = accounts.filter((a) => {
+    if (!a.active) return false;
+    if (!entityId || !a.entity_id) return true;
+    return a.entity_id === entityId;
+  });
+
+  const otherEntities = entities.filter((e) => e.id !== entityId);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -77,6 +108,7 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
       if (!categoryId) throw new Error("Elegí una categoría");
       const num = Number(amount);
       if (!num || num <= 0) throw new Error("El monto debe ser mayor a 0");
+      if (isIntercompany && !toEntityId) throw new Error("Seleccioná la entidad destino");
       const payload = {
         date,
         description: description.trim() || null,
@@ -84,6 +116,8 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
         kind,
         category_id: categoryId,
         account_id: accountId || null,
+        entity_id: entityId || null,
+        to_entity_id: isIntercompany ? (toEntityId || null) : null,
         amount: num,
         notes: notes.trim() || null,
       };
@@ -92,7 +126,6 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["movements"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(initial ? "Movimiento actualizado" : "Movimiento registrado");
       if (!initial) {
         setDescription("");
@@ -100,6 +133,7 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
         setNotes("");
         setCategoryId("");
         setDate(todayIso());
+        setToEntityId("");
         if (saveAndNew) onSavedAndNew?.();
         else onSaved?.();
       } else {
@@ -115,10 +149,31 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
   };
 
   return (
-    <form
-      className="space-y-5"
-      onSubmit={(e) => { e.preventDefault(); handleSubmit(false); }}
-    >
+    <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleSubmit(false); }}>
+
+      {/* Entity selector */}
+      {entities.length > 0 && (
+        <div className="space-y-1">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entidad</Label>
+          <div className="flex flex-wrap gap-2">
+            {entities.map((e: Entity) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setEntityId(e.id)}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95",
+                  entityId === e.id ? "text-white" : "border-border bg-card text-muted-foreground"
+                )}
+                style={entityId === e.id ? { backgroundColor: e.color, borderColor: e.color } : undefined}
+              >
+                {e.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Kind chips */}
       <div className="space-y-3">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tipo de movimiento</Label>
@@ -143,6 +198,36 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
           </div>
         ))}
       </div>
+
+      {/* Destination entity (intercompany) */}
+      {isIntercompany && (
+        <div className="space-y-1">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            {kind === "retiro_negocio" ? "Acreditar a" : "Entidad destino"}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {otherEntities.map((e: Entity) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setToEntityId(e.id)}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95",
+                  toEntityId === e.id ? "text-white" : "border-border bg-card text-muted-foreground"
+                )}
+                style={toEntityId === e.id ? { backgroundColor: e.color, borderColor: e.color } : undefined}
+              >
+                {e.name}
+              </button>
+            ))}
+          </div>
+          {isIntercompany && toEntityId && (
+            <p className="text-xs text-muted-foreground">
+              Este movimiento aparecerá como gasto en {entities.find(e => e.id === entityId)?.name} e ingreso en {entities.find(e => e.id === toEntityId)?.name}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Amount */}
       <div className="space-y-1">
@@ -187,11 +272,9 @@ export function MovementForm({ initial, onSaved, onSavedAndNew, submitLabel = "R
             <SelectValue placeholder="¿Desde qué cuenta?" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="">Sin especificar</SelectItem>
             {activeAccounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-                {a.type === "business" && <span className="ml-1 text-xs text-amber-600"> (negocio)</span>}
-              </SelectItem>
+              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

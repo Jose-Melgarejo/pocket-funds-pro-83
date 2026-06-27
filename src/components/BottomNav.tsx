@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Home, PlusCircle, ListOrdered, BarChart3, Tags } from "lucide-react";
+import { Home, PlusCircle, ListOrdered, BarChart3, UserCircle } from "lucide-react";
 
 type NavItem = {
-  to: "/" | "/movimientos" | "/registrar" | "/reportes" | "/categorias";
+  to: "/" | "/movimientos" | "/registrar" | "/reportes" | "/perfil";
   label: string;
   icon: typeof Home;
   exact?: boolean;
@@ -14,7 +14,7 @@ const items: NavItem[] = [
   { to: "/movimientos", label: "Movimientos", icon: ListOrdered },
   { to: "/registrar", label: "Registrar", icon: PlusCircle, primary: true },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
-  { to: "/categorias", label: "Categorías", icon: Tags },
+  { to: "/perfil", label: "Perfil", icon: UserCircle },
 ];
 
 export function BottomNav() {

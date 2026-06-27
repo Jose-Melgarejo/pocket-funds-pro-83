@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReportesRouteImport } from './routes/reportes'
 import { Route as RegistrarRouteImport } from './routes/registrar'
+import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as MovimientosRouteImport } from './routes/movimientos'
 import { Route as CategoriasRouteImport } from './routes/categorias'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const ReportesRoute = ReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegistrarRoute = RegistrarRouteImport.update({
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/categorias': typeof CategoriasRoute
   '/movimientos': typeof MovimientosRoute
+  '/perfil': typeof PerfilRoute
   '/registrar': typeof RegistrarRoute
   '/reportes': typeof ReportesRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/categorias': typeof CategoriasRoute
   '/movimientos': typeof MovimientosRoute
+  '/perfil': typeof PerfilRoute
   '/registrar': typeof RegistrarRoute
   '/reportes': typeof ReportesRoute
 }
@@ -60,19 +68,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/categorias': typeof CategoriasRoute
   '/movimientos': typeof MovimientosRoute
+  '/perfil': typeof PerfilRoute
   '/registrar': typeof RegistrarRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/categorias' | '/movimientos' | '/registrar' | '/reportes'
+  fullPaths: '/' | '/categorias' | '/movimientos' | '/perfil' | '/registrar' | '/reportes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/categorias' | '/movimientos' | '/registrar' | '/reportes'
+  to: '/' | '/categorias' | '/movimientos' | '/perfil' | '/registrar' | '/reportes'
   id:
     | '__root__'
     | '/'
     | '/categorias'
     | '/movimientos'
+    | '/perfil'
     | '/registrar'
     | '/reportes'
   fileRoutesById: FileRoutesById
@@ -81,6 +91,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CategoriasRoute: typeof CategoriasRoute
   MovimientosRoute: typeof MovimientosRoute
+  PerfilRoute: typeof PerfilRoute
   RegistrarRoute: typeof RegistrarRoute
   ReportesRoute: typeof ReportesRoute
 }
@@ -99,6 +110,13 @@ declare module '@tanstack/react-router' {
       path: '/registrar'
       fullPath: '/registrar'
       preLoaderRoute: typeof RegistrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movimientos': {
@@ -129,6 +147,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CategoriasRoute: CategoriasRoute,
   MovimientosRoute: MovimientosRoute,
+  PerfilRoute: PerfilRoute,
   RegistrarRoute: RegistrarRoute,
   ReportesRoute: ReportesRoute,
 }

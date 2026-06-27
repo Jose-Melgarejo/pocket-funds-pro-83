@@ -100,6 +100,7 @@ function AppFrame() {
     "/movimientos": "Movimientos",
     "/reportes": "Reportes",
     "/categorias": "Categorías",
+    "/perfil": "Perfil",
   };
   const title = titles[pathname] ?? "Control de Finanzas";
   return (

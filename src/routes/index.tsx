@@ -1,30 +1,39 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listMovements, monthRange, fmtMoney, fmtDate, KIND_LABELS, type MovementKind } from "@/lib/finance-api";
-import { ArrowDownCircle, ArrowUpCircle, Plus, TrendingUp, TrendingDown, Wallet, Building2 } from "lucide-react";
+import { useState } from "react";
+import {
+  listMovements, listEntities, monthRange, fmtMoney, fmtDate,
+  computeStats, amountForEntity, KIND_LABELS,
+  type MovementKind, type Entity,
+} from "@/lib/finance-api";
+import { ArrowDownCircle, ArrowUpCircle, Plus, TrendingUp, TrendingDown, Wallet, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/")({
-  component: Dashboard,
-});
+export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
   const { from, to } = monthRange();
-  const { data: movs = [], isLoading } = useQuery({
-    queryKey: ["movements", { from, to }],
-    queryFn: () => listMovements({ from, to }),
+  const [entityId, setEntityId] = useState<string | null>(null); // null = not loaded yet
+
+  const { data: entities = [] } = useQuery({
+    queryKey: ["entities"],
+    queryFn: listEntities,
+    staleTime: 60_000,
   });
 
-  const ingresos = movs
-    .filter((m) => m.type === "income" && m.kind !== "retiro_negocio")
-    .reduce((s, m) => s + Number(m.amount), 0);
-  const gastos = movs
-    .filter((m) => m.type === "expense")
-    .reduce((s, m) => s + Number(m.amount), 0);
-  const retirosNegocio = movs
-    .filter((m) => m.kind === "retiro_negocio")
-    .reduce((s, m) => s + Number(m.amount), 0);
-  const balance = ingresos - gastos;
+  // Default to first entity (Personal) once loaded
+  const activeEntity: Entity | undefined = entityId
+    ? entities.find((e) => e.id === entityId)
+    : entities[0];
+  const activeId = activeEntity?.id ?? "";
+
+  const { data: movs = [], isLoading } = useQuery({
+    queryKey: ["movements", { from, to, entityId: activeId }],
+    queryFn: () => listMovements({ from, to, entityId: activeId }),
+    enabled: !!activeId,
+  });
+
+  const stats = computeStats(movs, activeId);
   const monthName = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
 
   const kindLabel = (m: (typeof movs)[0]) => {
@@ -32,24 +41,65 @@ function Dashboard() {
     return m.type === "income" ? "Ingreso" : "Gasto";
   };
 
+  // For display: amount relative to active entity
+  const displayAmount = (m: (typeof movs)[0]) => amountForEntity(m, activeId);
+
   return (
     <div className="space-y-5">
+      {/* Entity selector */}
+      {entities.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {entities.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => setEntityId(e.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition",
+                (activeEntity?.id ?? entities[0]?.id) === e.id
+                  ? "text-white shadow-sm"
+                  : "border-border bg-card text-muted-foreground"
+              )}
+              style={
+                (activeEntity?.id ?? entities[0]?.id) === e.id
+                  ? { backgroundColor: e.color, borderColor: e.color }
+                  : undefined
+              }
+            >
+              {e.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Balance card */}
       <section
-        className={cn(
-          "rounded-2xl p-5 text-white shadow-[var(--shadow-card)]",
-          balance >= 0
-            ? "bg-gradient-to-br from-[oklch(0.55_0.18_252)] to-[oklch(0.45_0.15_252)]"
-            : "bg-gradient-to-br from-[oklch(0.6_0.22_28)] to-[oklch(0.45_0.18_28)]"
-        )}
+        className="rounded-2xl p-5 text-white shadow-[var(--shadow-card)]"
+        style={{
+          background: activeEntity
+            ? `linear-gradient(135deg, ${activeEntity.color}dd, ${activeEntity.color}aa)`
+            : "linear-gradient(135deg, oklch(0.55 0.18 252), oklch(0.45 0.15 252))",
+        }}
       >
-        <p className="text-xs uppercase tracking-wider opacity-80">Balance · {monthName}</p>
-        <p className="mt-1 text-3xl font-black tabular-nums">{fmtMoney(balance)}</p>
-        <p className="mt-1 text-xs opacity-90">
-          {balance >= 0 ? "Te sobró dinero este mes" : "Gastaste más de lo que ingresó"}
+        <p className="text-xs uppercase tracking-wider opacity-80">
+          {activeEntity?.name ?? "—"} · {monthName}
         </p>
-        <div className="mt-4 flex items-center gap-2 text-xs">
+        <p className="mt-1 text-3xl font-black tabular-nums">{fmtMoney(stats.balance)}</p>
+        <p className="mt-1 text-xs opacity-90">
+          {stats.balance >= 0 ? "Balance positivo" : "Balance negativo"}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
           <span className="rounded-full bg-white/15 px-2 py-1">{movs.length} movimientos</span>
+          {stats.transferencias_recibidas > 0 && (
+            <span className="rounded-full bg-white/15 px-2 py-1">
+              Recibido de otras entidades: {fmtMoney(stats.transferencias_recibidas)}
+            </span>
+          )}
+          {stats.transferencias_enviadas > 0 && (
+            <span className="rounded-full bg-white/15 px-2 py-1">
+              Enviado a otras entidades: {fmtMoney(stats.transferencias_enviadas)}
+            </span>
+          )}
         </div>
       </section>
 
@@ -60,27 +110,16 @@ function Dashboard() {
             <TrendingUp className="h-4 w-4" />
             <span className="text-xs font-medium">Ingresos</span>
           </div>
-          <p className="mt-2 text-xl font-bold tabular-nums">{fmtMoney(ingresos)}</p>
+          <p className="mt-2 text-xl font-bold tabular-nums">{fmtMoney(stats.ingresos)}</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)]">
           <div className="flex items-center gap-2 text-expense">
             <TrendingDown className="h-4 w-4" />
             <span className="text-xs font-medium">Gastos</span>
           </div>
-          <p className="mt-2 text-xl font-bold tabular-nums">{fmtMoney(gastos)}</p>
+          <p className="mt-2 text-xl font-bold tabular-nums">{fmtMoney(stats.gastos)}</p>
         </div>
       </section>
-
-      {/* Retiros del negocio */}
-      {retirosNegocio > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <Building2 className="h-5 w-5 shrink-0 text-amber-600" />
-          <div>
-            <p className="text-xs font-medium text-amber-800">Retiros del negocio este mes</p>
-            <p className="text-lg font-bold tabular-nums text-amber-700">{fmtMoney(retirosNegocio)}</p>
-          </div>
-        </div>
-      )}
 
       {/* CTA */}
       <Link
@@ -102,40 +141,53 @@ function Dashboard() {
           ) : movs.length === 0 ? (
             <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
               <Wallet className="h-8 w-8 opacity-50" />
-              Sin movimientos este mes. Empezá registrando el primero.
+              Sin movimientos este mes.
             </div>
           ) : (
             <ul className="divide-y divide-border">
-              {movs.slice(0, 6).map((m) => (
-                <li key={m.id} className="flex items-center gap-3 px-4 py-3">
-                  <div
-                    className={cn(
+              {movs.slice(0, 6).map((m) => {
+                const amt = displayAmount(m);
+                const isIncoming = m.to_entity_id === activeId && m.entity_id !== activeId;
+                const isOutgoing = m.entity_id === activeId && !!m.to_entity_id;
+                return (
+                  <li key={m.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className={cn(
                       "grid h-9 w-9 shrink-0 place-items-center rounded-full",
-                      m.kind === "retiro_negocio"
-                        ? "bg-amber-100 text-amber-600"
-                        : m.type === "income"
-                          ? "bg-income-soft text-income"
-                          : "bg-expense-soft text-expense"
-                    )}
-                  >
-                    {m.type === "income" ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{m.description || m.category?.name || "Movimiento"}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {kindLabel(m)} · {m.account?.name ?? m.category?.name ?? "Sin categoría"} · {fmtDate(m.date)}
-                    </p>
-                  </div>
-                  <p
-                    className={cn(
+                      isIncoming || m.type === "income"
+                        ? "bg-income-soft text-income"
+                        : "bg-expense-soft text-expense"
+                    )}>
+                      {isOutgoing ? (
+                        <ArrowRightLeft className="h-4 w-4" />
+                      ) : amt >= 0 ? (
+                        <ArrowUpCircle className="h-5 w-5" />
+                      ) : (
+                        <ArrowDownCircle className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {m.description || m.category?.name || "Movimiento"}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {isIncoming
+                          ? `De ${m.entity?.name ?? "otra entidad"}`
+                          : isOutgoing
+                          ? `→ ${m.to_entity?.name ?? "otra entidad"}`
+                          : kindLabel(m)}
+                        {" · "}{m.account?.name ?? m.category?.name ?? "Sin categoría"}
+                        {" · "}{fmtDate(m.date)}
+                      </p>
+                    </div>
+                    <p className={cn(
                       "shrink-0 text-sm font-bold tabular-nums",
-                      m.kind === "retiro_negocio" ? "text-amber-600" : m.type === "income" ? "text-income" : "text-expense"
-                    )}
-                  >
-                    {m.type === "income" ? "+" : "−"}{fmtMoney(Number(m.amount))}
-                  </p>
-                </li>
-              ))}
+                      amt >= 0 ? "text-income" : "text-expense"
+                    )}>
+                      {amt >= 0 ? "+" : "−"}{fmtMoney(Math.abs(amt))}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
