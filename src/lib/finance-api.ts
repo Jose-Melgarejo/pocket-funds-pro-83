@@ -141,7 +141,7 @@ export async function listMovements(filters?: {
 }): Promise<MovementWithCategory[]> {
   let q = supabase
     .from("movements")
-    .select("*, category:categories(*), account:accounts(*)")
+    .select("*, category:categories(*), account:accounts!account_id(*)")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
