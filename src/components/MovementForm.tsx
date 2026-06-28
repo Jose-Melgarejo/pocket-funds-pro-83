@@ -48,11 +48,6 @@ interface Props {
 export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew, submitLabel = "Registrar" }: Props) {
   const qc = useQueryClient();
   const { activeEntityId: contextEntityId } = useEntity();
-  const { data: categories } = useQuery({
-    queryKey: ["categories", entityId],
-    queryFn: () => listCategories(entityId || undefined),
-    enabled: true,
-  });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
   const { data: entities = [] } = useQuery({ queryKey: ["entities"], queryFn: listEntities });
 
@@ -66,6 +61,11 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
   const [entityId, setEntityId] = useState<string>(
     initial?.entity_id ?? defaultEntityId ?? contextEntityId ?? entities[0]?.id ?? ""
   );
+  const { data: categories } = useQuery({
+    queryKey: ["categories", entityId],
+    queryFn: () => listCategories(entityId || undefined),
+    enabled: true,
+  });
   const [toEntityId, setToEntityId] = useState<string>(initial?.to_entity_id ?? "");
   const [amount, setAmount] = useState<string>(initial ? String(initial.amount) : "");
   const [notes, setNotes] = useState(initial?.notes ?? "");

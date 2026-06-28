@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listMovements, fmtMoney } from "@/lib/finance-api";
+import { listMovements, fmtMoney, amountForEntity } from "@/lib/finance-api";
 import { useEntity } from "@/lib/entity-context";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -45,11 +45,14 @@ function ReportesPage() {
   const monthly = useMemo(() => {
     return months.map((m) => {
       const inM = movs.filter((mv) => mv.date >= m.from && mv.date <= m.to);
-      const ingresos = inM.filter((x) => x.type === "income").reduce((s, x) => s + Number(x.amount), 0);
-      const gastos = inM.filter((x) => x.type === "expense").reduce((s, x) => s + Number(x.amount), 0);
+      let ingresos = 0, gastos = 0;
+      for (const x of inM) {
+        const amt = activeEntityId ? amountForEntity(x, activeEntityId) : (x.type === "income" ? x.amount : -x.amount);
+        if (amt >= 0) ingresos += amt; else gastos += Math.abs(amt);
+      }
       return { label: m.label, ingresos, gastos, balance: ingresos - gastos };
     });
-  }, [months, movs]);
+  }, [months, movs, activeEntityId]);
 
   const currentFrom = months[months.length - 1].from;
   const currentTo = months[months.length - 1].to;
@@ -57,23 +60,30 @@ function ReportesPage() {
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    monthMovs.filter((m) => m.type === "expense").forEach((m) => {
-      const k = m.category?.name ?? "Sin categoría";
-      map.set(k, (map.get(k) ?? 0) + Number(m.amount));
-    });
+    for (const m of monthMovs) {
+      const amt = activeEntityId ? amountForEntity(m, activeEntityId) : (m.type === "income" ? m.amount : -m.amount);
+      if (amt < 0) {
+        const k = m.category?.name ?? "Sin categoría";
+        map.set(k, (map.get(k) ?? 0) + Math.abs(amt));
+      }
+    }
     return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [monthMovs]);
+  }, [monthMovs, activeEntityId]);
 
   const top5 = byCategory.slice(0, 5);
 
   const dayStats = useMemo(() => {
     const today = new Date();
     const daysElapsed = Math.max(1, today.getDate());
-    const totalGasto = monthMovs.filter((m) => m.type === "expense").reduce((s, m) => s + Number(m.amount), 0);
     const byDay = new Map<string, number>();
-    monthMovs.filter((m) => m.type === "expense").forEach((m) => {
-      byDay.set(m.date, (byDay.get(m.date) ?? 0) + Number(m.amount));
-    });
+    let totalGasto = 0;
+    for (const m of monthMovs) {
+      const amt = activeEntityId ? amountForEntity(m, activeEntityId) : (m.type === "income" ? m.amount : -m.amount);
+      if (amt < 0) {
+        totalGasto += Math.abs(amt);
+        byDay.set(m.date, (byDay.get(m.date) ?? 0) + Math.abs(amt));
+      }
+    }
     let topDay: { date: string; amount: number } | null = null;
     byDay.forEach((amount, date) => {
       if (!topDay || amount > topDay.amount) topDay = { date, amount };
