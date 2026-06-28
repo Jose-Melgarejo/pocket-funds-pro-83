@@ -29,6 +29,7 @@ export const KIND_LABELS: Record<MovementKind, string> = {
 
 export const KIND_GROUPS_PERSONAL: { label: string; kinds: MovementKind[] }[] = [
   { label: "Movimientos", kinds: ["ingreso_personal", "gasto_personal", "pago_tarjeta", "ahorro_inversion"] },
+  { label: "Desde negocio", kinds: ["retiro_negocio"] },
 ];
 
 export const KIND_GROUPS_BUSINESS: { label: string; kinds: MovementKind[] }[] = [

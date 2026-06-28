@@ -78,27 +78,34 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
     }
   }, [entities, entityId, defaultEntityId, contextEntityId]);
 
+  const activeEntityObj = entities.find((e) => e.id === entityId);
+  const kindGroups = activeEntityObj?.type === "business" ? KIND_GROUPS_BUSINESS : KIND_GROUPS_PERSONAL;
   const type = kindToType(kind);
   const isIntercompany = INTERCOMPANY_KINDS.includes(kind);
 
+  // When switching to retiro_negocio from a personal entity → flip: personal becomes destination, pick a business as origin
   useEffect(() => {
-    if (initial) return;
-    const cat = categories?.find((c) => c.id === categoryId);
-    if (cat && cat.suggested_type !== "both" && cat.suggested_type !== type) setCategoryId("");
-  }, [kind, categories, categoryId, type, initial]);
+    if (kind === "retiro_negocio") {
+      const currentEntity = entities.find((e) => e.id === entityId);
+      if (currentEntity?.type === "personal") {
+        setToEntityId(entityId);
+        const firstBusiness = entities.find((e) => e.type === "business");
+        if (firstBusiness) setEntityId(firstBusiness.id);
+      }
+    }
+  }, [kind]);
 
   // If kind is not intercompany, clear toEntityId
   useEffect(() => {
     if (!isIntercompany) setToEntityId("");
   }, [isIntercompany]);
 
-  const activeCategories = (categories ?? [])
-    .filter((c) => c.active)
-    .filter((c) => c.suggested_type === "both" || c.suggested_type === type);
-
-  // Filter accounts to selected entity (or show all if no entity selected)
-  const activeEntityObj = entities.find((e) => e.id === entityId);
-  const kindGroups = activeEntityObj?.type === "business" ? KIND_GROUPS_BUSINESS : KIND_GROUPS_PERSONAL;
+  // Reset category when kind/type changes
+  useEffect(() => {
+    if (initial) return;
+    const cat = categories?.find((c) => c.id === categoryId);
+    if (cat && cat.suggested_type !== "both" && cat.suggested_type !== type) setCategoryId("");
+  }, [kind, categories, categoryId, type, initial]);
 
   // Reset kind if current kind not available in new groups
   useEffect(() => {
@@ -106,13 +113,37 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
     if (!allKinds.includes(kind)) setKind(allKinds[0] ?? "gasto_personal");
   }, [entityId, kindGroups]);
 
+  // Is this a salary being registered from the personal side? (to_entity_id = personal)
+  const toEntityObj = entities.find((e) => e.id === toEntityId);
+  const isRetiroToPersonal = kind === "retiro_negocio" && toEntityObj?.type === "personal";
+
+  const activeCategories = (categories ?? [])
+    .filter((c) => c.active)
+    .filter((c) => c.suggested_type === "both" || c.suggested_type === type);
+
+  // Account filter logic:
+  // - retiro_negocio: show accounts of the DESTINATION entity (personal accounts)
+  // - otherwise: show accounts of the origin entity
+  const accountEntityId = kind === "retiro_negocio" ? (toEntityId || entityId) : entityId;
   const activeAccounts = accounts.filter((a) => {
     if (!a.active) return false;
-    if (!entityId || !a.entity_id) return true;
-    return a.entity_id === entityId;
+    if (!accountEntityId || !a.entity_id) return true;
+    return a.entity_id === accountEntityId;
   });
 
-  const otherEntities = entities.filter((e) => e.id !== entityId);
+  const accountLabel = type === "income" ? "¿A qué cuenta?" : "¿Desde qué cuenta?";
+
+  // Entities available for intercompany destination
+  const intercompanyTargets = entities.filter((e) => {
+    if (e.id === entityId) return false;
+    if (kind === "transferencia") return e.type === "business"; // only businesses
+    return true;
+  });
+
+  // Entity chips: when retiro_negocio going to personal, only show businesses as origin
+  const entityChips = isRetiroToPersonal
+    ? entities.filter((e) => e.type === "business")
+    : entities;
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -164,11 +195,13 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
     <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleSubmit(false); }}>
 
       {/* Entity selector */}
-      {entities.length > 0 && (
+      {entityChips.length > 0 && (
         <div className="space-y-1">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Entidad</Label>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            {isRetiroToPersonal ? "Negocio origen" : "Entidad"}
+          </Label>
           <div className="flex flex-wrap gap-2">
-            {entities.map((e: Entity) => (
+            {entityChips.map((e: Entity) => (
               <button
                 key={e.id}
                 type="button"
@@ -183,6 +216,11 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
               </button>
             ))}
           </div>
+          {isRetiroToPersonal && (
+            <p className="text-xs text-muted-foreground">
+              Acreditado a {toEntityObj?.name}
+            </p>
+          )}
         </div>
       )}
 
@@ -211,14 +249,14 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
         ))}
       </div>
 
-      {/* Destination entity (intercompany) */}
-      {isIntercompany && (
+      {/* Destination entity (intercompany, not retiro-to-personal which auto-sets) */}
+      {isIntercompany && !isRetiroToPersonal && (
         <div className="space-y-1">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             {kind === "retiro_negocio" ? "Acreditar a" : "Entidad destino"}
           </Label>
           <div className="flex flex-wrap gap-2">
-            {otherEntities.map((e: Entity) => (
+            {intercompanyTargets.map((e: Entity) => (
               <button
                 key={e.id}
                 type="button"
@@ -233,9 +271,9 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
               </button>
             ))}
           </div>
-          {isIntercompany && toEntityId && (
+          {toEntityId && (
             <p className="text-xs text-muted-foreground">
-              Este movimiento aparecerá como gasto en {entities.find(e => e.id === entityId)?.name} e ingreso en {entities.find(e => e.id === toEntityId)?.name}
+              Aparece como gasto en {entities.find(e => e.id === entityId)?.name} e ingreso en {entities.find(e => e.id === toEntityId)?.name}
             </p>
           )}
         </div>
@@ -281,7 +319,7 @@ export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew,
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Cuenta / Billetera</Label>
         <Select value={accountId} onValueChange={setAccountId}>
           <SelectTrigger className="h-12">
-            <SelectValue placeholder="¿Desde qué cuenta?" />
+            <SelectValue placeholder={accountLabel} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Sin especificar</SelectItem>
