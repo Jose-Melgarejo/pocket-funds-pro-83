@@ -14,7 +14,7 @@ export type MovementKind =
   | "ahorro_inversion";
 
 export function kindToType(kind: MovementKind): MovementType {
-  return kind === "ingreso_personal" || kind === "retiro_negocio" ? "income" : "expense";
+  return kind === "ingreso_personal" ? "income" : "expense";
 }
 
 export const KIND_LABELS: Record<MovementKind, string> = {
