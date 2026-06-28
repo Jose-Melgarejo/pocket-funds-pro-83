@@ -158,8 +158,13 @@ export async function updateAccount(id: string, input: Partial<Pick<Account, "na
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
-export async function listCategories(): Promise<Category[]> {
-  const { data, error } = await supabase.from("categories").select("*").order("name");
+export async function listCategories(entityId?: string): Promise<Category[]> {
+  let q = supabase.from("categories").select("*").eq("active", true).order("name");
+  if (entityId) {
+    // categories for this entity OR global (entity_id null)
+    q = q.or(`entity_id.eq.${entityId},entity_id.is.null`);
+  }
+  const { data, error } = await q;
   if (error) throw error;
   return data as Category[];
 }

@@ -48,7 +48,11 @@ interface Props {
 export function MovementForm({ initial, defaultEntityId, onSaved, onSavedAndNew, submitLabel = "Registrar" }: Props) {
   const qc = useQueryClient();
   const { activeEntityId: contextEntityId } = useEntity();
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
+  const { data: categories } = useQuery({
+    queryKey: ["categories", entityId],
+    queryFn: () => listCategories(entityId || undefined),
+    enabled: true,
+  });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
   const { data: entities = [] } = useQuery({ queryKey: ["entities"], queryFn: listEntities });
 

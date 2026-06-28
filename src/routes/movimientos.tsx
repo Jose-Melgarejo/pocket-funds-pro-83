@@ -41,7 +41,10 @@ function MovimientosPage() {
   const [editing, setEditing] = useState<MovementWithRefs | null>(null);
   const [toDelete, setToDelete] = useState<MovementWithRefs | null>(null);
 
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: listCategories });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", activeEntityId],
+    queryFn: () => listCategories(activeEntityId ?? undefined),
+  });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });
   const { data: movs = [], isLoading } = useQuery({
     queryKey: ["movements", { type, categoryId, accountId, from, to, search, entityId: activeEntityId }],
