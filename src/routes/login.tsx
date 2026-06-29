@@ -41,6 +41,7 @@ function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -61,14 +62,20 @@ function LoginPage() {
 
   const handleRegister = async () => {
     clearMessages();
+    if (!name.trim()) { setError("Ingresá tu nombre"); return; }
     if (!email.trim()) { setError("Ingresá tu email"); return; }
     if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
     setLoading(true);
-    const { error: e } = await supabase.auth.signUp({ email: email.trim(), password });
+    const { error: e } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { full_name: name.trim() } },
+    });
     setLoading(false);
     if (e) { setError(translateError(e.message)); return; }
     setSuccess("¡Cuenta creada! Ya podés ingresar.");
     setPassword("");
+    setName("");
     setMode("login");
   };
 
@@ -110,6 +117,23 @@ function LoginPage() {
           {error && <Alert type="error" msg={error} />}
           {success && <Alert type="success" msg={success} />}
 
+          {/* Name (register only) */}
+          {mode === "register" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Nombre completo</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Tu nombre"
+                value={name}
+                onChange={(e) => { setName(e.target.value); clearMessages(); }}
+                className="h-12"
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+          )}
+
           {/* Email */}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
@@ -121,7 +145,7 @@ function LoginPage() {
               onChange={(e) => { setEmail(e.target.value); clearMessages(); }}
               className={cn("h-12", error && !password && "border-destructive focus-visible:ring-destructive")}
               autoComplete="email"
-              autoFocus
+              autoFocus={mode !== "register"}
             />
           </div>
 
