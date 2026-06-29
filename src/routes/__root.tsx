@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
+import { Sidebar } from "@/components/Sidebar";
 import { EntitySwitcher } from "@/components/EntitySwitcher";
 import { EntityProvider } from "@/lib/entity-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -96,36 +97,53 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-// Pages where the entity switcher is visible in the header
 const ENTITY_PAGES = new Set(["/", "/movimientos", "/registrar", "/reportes"]);
+
+const PAGE_TITLES: Record<string, string> = {
+  "/registrar": "Registrar movimiento",
+  "/reportes": "Reportes",
+  "/categorias": "Categorías",
+  "/perfil": "Perfil",
+};
 
 function AppFrame() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const titles: Record<string, string> = {
-    "/registrar": "Registrar movimiento",
-    "/reportes": "Reportes",
-    "/categorias": "Categorías",
-    "/perfil": "Perfil",
-  };
-  const title = titles[pathname];
   const showSwitcher = ENTITY_PAGES.has(pathname);
+  const title = PAGE_TITLES[pathname];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
-          {showSwitcher ? (
-            <EntitySwitcher />
-          ) : (
-            <h1 className="truncate text-base font-semibold tracking-tight">
-              {title ?? "Control de Finanzas"}
-            </h1>
-          )}
-        </div>
-      </header>
-      <main className="mx-auto max-w-md px-4 pb-28 pt-4">
-        <Outlet />
-      </main>
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop sidebar */}
+      <Sidebar />
+
+      {/* Main area */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* Mobile header */}
+        <header className="md:hidden sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+          <div className="flex h-14 items-center justify-between px-4">
+            {showSwitcher ? (
+              <EntitySwitcher />
+            ) : (
+              <h1 className="truncate text-base font-semibold tracking-tight">
+                {title ?? "Control de Finanzas"}
+              </h1>
+            )}
+          </div>
+        </header>
+
+        {/* Desktop page title */}
+        {title && (
+          <div className="hidden md:block border-b border-border px-8 py-4">
+            <h1 className="text-lg font-semibold">{title}</h1>
+          </div>
+        )}
+
+        <main className="flex-1 px-4 md:px-8 pb-28 md:pb-8 pt-4 md:pt-6 w-full max-w-3xl">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* Mobile bottom nav */}
       <BottomNav />
       <Toaster position="top-center" richColors />
     </div>

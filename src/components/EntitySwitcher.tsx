@@ -5,7 +5,7 @@ import { listEntities, type Entity } from "@/lib/finance-api";
 import { useEntity } from "@/lib/entity-context";
 import { cn } from "@/lib/utils";
 
-export function EntitySwitcher() {
+export function EntitySwitcher({ variant = "dropdown" }: { variant?: "dropdown" | "list" }) {
   const { activeEntityId, setActiveEntityId } = useEntity();
   const [open, setOpen] = useState(false);
 
@@ -30,6 +30,33 @@ export function EntitySwitcher() {
     setActiveEntityId(id);
     setOpen(false);
   };
+
+  if (variant === "list") {
+    return (
+      <div className="space-y-0.5">
+        {entities.map((e) => (
+          <button
+            key={e.id}
+            onClick={() => handleSelect(e.id)}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors",
+              (activeEntityId ?? entities[0]?.id) === e.id
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <span
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ backgroundColor: e.color }}
+            >
+              {e.type === "personal" ? <User className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
+            </span>
+            <span className="truncate">{e.name}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
