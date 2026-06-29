@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import {
   listEntities, createEntity, updateEntity, deleteEntity,
@@ -324,9 +325,36 @@ function AccountSheet({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function PerfilPage() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate({ to: "/login" });
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-bold">Perfil</h1>
+      {/* Account info */}
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Mi cuenta</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+            {user?.email?.[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+            <p className="text-xs text-muted-foreground">Usuario registrado</p>
+          </div>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="w-full rounded-xl border border-destructive/30 bg-destructive/5 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+
       <EntitySection />
       <AccountSection />
     </div>

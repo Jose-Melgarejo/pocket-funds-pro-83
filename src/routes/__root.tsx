@@ -6,6 +6,7 @@ import {
   HeadContent,
   Scripts,
   useRouterState,
+  useNavigate,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -14,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
 import { EntitySwitcher } from "@/components/EntitySwitcher";
 import { EntityProvider } from "@/lib/entity-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -130,13 +132,46 @@ function AppFrame() {
   );
 }
 
+function AuthGate() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const publicRoutes = ["/login", "/reset-password"];
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user && !publicRoutes.includes(pathname)) {
+      navigate({ to: "/login" });
+    }
+    if (user && pathname === "/login") {
+      navigate({ to: "/" });
+    }
+  }, [user, loading, pathname]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-sm text-muted-foreground">Cargando…</div>
+      </div>
+    );
+  }
+
+  if (!user && !publicRoutes.includes(pathname)) return null;
+
+  return publicRoutes.includes(pathname) ? <Outlet /> : (
+    <EntityProvider>
+      <AppFrame />
+    </EntityProvider>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <EntityProvider>
-        <AppFrame />
-      </EntityProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
